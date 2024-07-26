@@ -1,8 +1,9 @@
-//! Example on how to interact with a deployed `stylus-hello-world` program using defaults.
+//! Example on how to interact with a deployed `int-return-types` program using defaults.
 //! This example uses ethers-rs to instantiate the program using a Solidity ABI.
 //! Then, it attempts to check the current counter value, increment it via a tx,
-//! and check the value again. The deployed program is fully written in Rust and compiled to WASM
-//! but with Stylus, it is accessible just as a normal Solidity smart contract is via an ABI.
+//! and check the value again. This is repeated for several different integer types.
+//! The deployed program is fully written in Rust and compiled to WASM but with Stylus,
+//! it is accessible just as a normal Solidity smart contract is via an ABI.
 
 use ethers::{
     middleware::SignerMiddleware,
@@ -17,37 +18,36 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 /// Your private key file path.
-// const PRIV_KEY_PATH: &str = "PRIV_KEY_PATH";
+const PRIV_KEY_PATH: &str = "PRIV_KEY_PATH";
 
 /// Stylus RPC endpoint url.
-const RPC_URL: &str = "";
+const RPC_URL: &str = "RPC_URL";
 
 /// Deployed pragram address.
-const STYLUS_PROGRAM_ADDRESS: &str = "";
+const STYLUS_PROGRAM_ADDRESS: &str = "ADDR";
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
-    // let priv_key_path =
-    //     std::env::var(PRIV_KEY_PATH).map_err(|_| eyre!("No {} env var set", PRIV_KEY_PATH))?;
-    // let rpc_url = std::env::var(RPC_URL).map_err(|_| eyre!("No {} env var set", RPC_URL))?;
-    // let program_address = std::env::var(STYLUS_PROGRAM_ADDRESS)
-    //     .map_err(|_| eyre!("No {} env var set", STYLUS_PROGRAM_ADDRESS))?;
-    let rpc_url = RPC_URL;
-    let program_address = STYLUS_PROGRAM_ADDRESS;
+    let priv_key_path =
+        std::env::var(PRIV_KEY_PATH).map_err(|_| eyre!("No {} env var set", PRIV_KEY_PATH))?;
+    let rpc_url = std::env::var(RPC_URL).map_err(|_| eyre!("No {} env var set", RPC_URL))?;
+    let program_address = std::env::var(STYLUS_PROGRAM_ADDRESS)
+        .map_err(|_| eyre!("No {} env var set", STYLUS_PROGRAM_ADDRESS))?;
     abigen!(
         Counter,
         r#"[
-            function number() external view returns (uint256)
-            function setNumber(uint256 number) external
-            function increment() external
+            function getU8() external view returns (uint8)
+            function getU8Builtin() external view returns (uint8)
+            function setU8(uint8 value) external
+            function setU8Builtin(uint8 value) external
+            function incrementU8() external
         ]"#
     );
 
     let provider = Provider::<Http>::try_from(rpc_url)?;
     let address: Address = program_address.parse()?;
 
-    // let privkey = read_secret_from_file(&priv_key_path)?;
-    let privkey = "".to_string();
+    let privkey = read_secret_from_file(&priv_key_path)?;
     let wallet = LocalWallet::from_str(&privkey)?;
     let chain_id = provider.get_chainid().await?.as_u64();
     let client = Arc::new(SignerMiddleware::new(
@@ -56,17 +56,18 @@ async fn main() -> eyre::Result<()> {
     ));
 
     let counter = Counter::new(address, client);
-    let num = counter.number().call().await;
-    println!("Counter number value = {:?}", num);
 
-    let pending = counter.increment();
+    let unsigned8 = counter.get_u8().call().await;
+    println!("Counter U8 value = {:?}", unsigned8);
+
+    let pending = counter.increment_u8();
     if let Some(receipt) = pending.send().await?.await? {
         println!("Receipt = {:?}", receipt);
     }
-    println!("Successfully incremented counter via a tx");
+    println!("Successfully incremented U8 counter via a tx");
 
-    let num = counter.number().call().await;
-    println!("New counter number value = {:?}", num);
+    let unsigned8 = counter.get_u8().call().await;
+    println!("New counter number value = {:?}", unsigned8);
     Ok(())
 }
 
